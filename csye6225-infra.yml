@@ -33,6 +33,17 @@ Parameters:
     Description: "Name Tag for Security Group"
     Type: String
     Default: "application"
+  AmiID:
+    Description: "AMI ID for Instance"
+    Type: String
+  Ipv4Cidr:
+    Description: "AMI ID for Instance"
+    Type: String
+    Default: "0.0.0.0/0"
+  Ipv6Cidr:
+    Description: "AMI ID for Instance"
+    Type: String
+    Default: "::/0"
 Resources:
   myVPC:
     Type: AWS::EC2::VPC
@@ -150,44 +161,53 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
+          CidrIp:
+            Ref: Ipv4Cidr
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIpv6: ::/0
+          CidrIpv6:
+            Ref: Ipv6Cidr
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp: 0.0.0.0/0
+          CidrIp:
+            Ref: Ipv4Cidr
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIpv6: ::/0
+          CidrIpv6:
+            Ref: Ipv6Cidr
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIp: 0.0.0.0/0
+          CidrIp:
+            Ref: Ipv4Cidr
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIpv6: ::/0
+          CidrIpv6:
+            Ref: Ipv6Cidr
         - IpProtocol: tcp
           Description: SSH
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 
+            Ref: Ipv4Cidr
         - IpProtocol: tcp
           Description: SSH
           FromPort: 22
           ToPort: 22
-          CidrIpv6: ::/0
+          CidrIpv6:
+            Ref: Ipv6Cidr
         Tags:
         - Key: Name
           Value: !Ref SGName
   MyEC2Instance: 
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: "ami-03120a09111dd2484"
+      ImageId: 
+        Ref: "AmiID"
       InstanceType: "t2.micro"
       KeyName: "Webapp"
       BlockDeviceMappings: 
