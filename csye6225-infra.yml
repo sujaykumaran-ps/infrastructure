@@ -29,6 +29,10 @@ Parameters:
     Description: "Name Tag for Internet Gateway"
     Type: String
     Default: "InternetGateway"
+  SGName:
+    Description: "Name Tag for Security Group"
+    Type: String
+    Default: "application"
 Resources:
   myVPC:
     Type: AWS::EC2::VPC
@@ -57,7 +61,10 @@ Resources:
       VpcId:
         Ref: myVPC
       CidrBlock: !Select [0, !Ref VpcSubnetCidrBlocks]
-      AvailabilityZone: !Select [0, !Ref VpcSubnetAvailabilityZones]
+      AvailabilityZone: !Select 
+        - 2
+        - !GetAZs 
+          Ref: 'AWS::Region'
       Tags: 
       - Key: Name
         Value: !Select [0, !Ref SubnetNames]
@@ -69,7 +76,10 @@ Resources:
       VpcId:
         Ref: myVPC
       CidrBlock: !Select [1, !Ref VpcSubnetCidrBlocks]
-      AvailabilityZone: !Select [1, !Ref VpcSubnetAvailabilityZones]
+      AvailabilityZone: !Select 
+        - 2
+        - !GetAZs 
+          Ref: 'AWS::Region'
       Tags: 
       - Key: Name
         Value: !Select [1, !Ref SubnetNames]
@@ -81,7 +91,10 @@ Resources:
       VpcId:
         Ref: myVPC
       CidrBlock: !Select [2, !Ref VpcSubnetCidrBlocks]
-      AvailabilityZone: !Select [2, !Ref VpcSubnetAvailabilityZones]
+      AvailabilityZone: !Select 
+        - 2
+        - !GetAZs 
+          Ref: 'AWS::Region'
       Tags: 
       - Key: Name
         Value: !Select [2, !Ref SubnetNames]
@@ -127,6 +140,69 @@ Resources:
        DestinationCidrBlock: !Ref RouteDestinationCidrBlock
        GatewayId:
          Ref: InternetGateway
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: application
+        VpcId:
+          Ref: myVPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6: ::/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIpv6: ::/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIpv6: ::/0
+        - IpProtocol: tcp
+          Description: SSH
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          Description: SSH
+          FromPort: 22
+          ToPort: 22
+          CidrIpv6: ::/0
+        Tags:
+        - Key: Name
+          Value: !Ref SGName
+  MyEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: "ami-03120a09111dd2484"
+      InstanceType: "t2.micro"
+      KeyName: "Webapp"
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sdm"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "false"
+          VolumeSize: "20"
+      NetworkInterfaces: 
+      - AssociatePublicIpAddress: "true"
+        DeviceIndex: "0"
+        GroupSet: 
+          - Ref: "InstanceSecurityGroup"
+        SubnetId: 
+          Ref: "SubnetA"
 Outputs:
   VpcId:
     Description: The VPC ID
