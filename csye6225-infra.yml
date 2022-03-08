@@ -17,10 +17,6 @@ Parameters:
     Description: "CIDR Block for Public Route"
     Type: String
     Default: "0.0.0.0/0"
-  PrivateRouteDestinationCidrBlock:
-    Description: "CIDR Block for Public Route"
-    Type: String
-    Default: "0.0.0.0/0"
   PublicSubnetNames:
     Description: "Name Tags for Subnets"
     Type: CommaDelimitedList
@@ -41,10 +37,6 @@ Parameters:
     Description: "Name Tag for Internet Gateway"
     Type: String
     Default: "InternetGateway"
-  NATGatewayName:
-    Description: "Name Tag for NAT Gateway"
-    Type: String
-    Default: "NATGateway"
   AppSGName:
     Description: "Name Tag for Application Security Group"
     Type: String
@@ -93,20 +85,6 @@ Resources:
     Properties:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref myVPC
-  NATGateway:
-    Type: AWS::EC2::NatGateway
-    DependsOn: ElasticIPAddress
-    Properties:
-      AllocationId: !GetAtt ElasticIPAddress.AllocationId
-      SubnetId: !Ref PublicSubnetA
-      Tags:
-      - Key: Name
-        Value: !Ref NATGatewayName
-  ElasticIPAddress:
-    Type: AWS::EC2::EIP
-    DependsOn: myVPC
-    Properties:
-      Domain: vpc
   PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -232,14 +210,6 @@ Resources:
       DestinationCidrBlock: !Ref PublicRouteDestinationCidrBlock
       GatewayId:
         Ref: InternetGateway
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable
-      NatGatewayId:
-        Ref: NATGateway
-      DestinationCidrBlock: !Ref PrivateRouteDestinationCidrBlock
   PublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -398,6 +368,82 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref S3BucketName
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup' 
+    Properties: 
+      DBSubnetGroupDescription: Private Subnet Group for MyQql Database
+      DBSubnetGroupName: RDS Subnet Group
+      SubnetIds: 
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+        - !Ref PrivateSubnetC
+  RDSDBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: PG-MySQL8
+      Family: mysql8.0
+  # MyDB:
+  #   Type: 'AWS::RDS::DBInstance'
+  #   DeletionPolicy: Delete
+  #   Properties:
+  #     MultiAZ: false
+  #     DBInstanceIdentifier: csye6225
+  #     DBName: csye6225
+  #     Port: 3306
+  #     DBInstanceClass: db.t3.micro
+  #     AllocatedStorage: 20
+  #     Engine: MySQL
+  #     EngineVersion: 8.0.27
+  #     MasterUsername: csye6225
+  #     MasterUserPassword: Csye6225DB
+  #     PubliclyAccessible: false
+  #     VPCSecurityGroups:
+  #       - !Ref DBSecurityGroup
+  #     DBSubnetGroupName:
+  #       Ref: DBSubnetGroup
+  #     DBParameterGroupName:
+  #       Ref: RDSDBParameterGroup
+  WebAppS3Policy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+        PolicyName: WebAppS3
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+              - 's3:GetObject'
+              - 's3:PutObject'
+              - 's3:DeleteObject'
+              - 's3:PutObjectAcl'
+              - 'logs:Create*'
+              - 'logs:PutLogEvents"'
+            Resource: 
+              - 'arn:aws:logs:*:*:*'
+              - 'arn:aws:s3:::*'
+          Roles:
+            - !Ref IAMRole
+  IAMRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: EC2-CSYE6225
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+  IAMInstanceProfile: 
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: IAMRole
 Outputs:
   VpcId:
     Description: The VPC ID
