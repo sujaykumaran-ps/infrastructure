@@ -56,6 +56,13 @@ Parameters:
   AmiID:
     Description: "AMI ID for Instance"
     Type: String
+  EC2InstanceName:
+    Description: "Instance Name"
+    Type: String
+    Default: "Webapp"
+  S3BucketName:
+    Description: "S3 Bucket Name"
+    Type: String
   Ipv4Cidr:
     Description: "AMI ID for Instance"
     Type: String
@@ -363,6 +370,34 @@ Resources:
           - Ref: ApplicationSecurityGroup
         SubnetId: 
           Ref: PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Ref EC2InstanceName
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete
+    Properties:
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: Move to Standard IA
+            Prefix: profile
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+      Tags:
+        - Key: Name
+          Value: !Ref S3BucketName
 Outputs:
   VpcId:
     Description: The VPC ID
