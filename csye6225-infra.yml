@@ -325,6 +325,7 @@ Resources:
     Properties: 
       ImageId: 
         Ref: "AmiID"
+      IamInstanceProfile: !Ref IAMInstanceProfile
       InstanceType: "t2.micro"
       KeyName: "Webapp"
       BlockDeviceMappings: 
@@ -423,8 +424,8 @@ Resources:
             Resource: 
               - 'arn:aws:logs:*:*:*'
               - 'arn:aws:s3:::*'
-          Roles:
-            - !Ref IAMRole
+        Roles: 
+          - !Ref IAMRole
   IAMRole:
     Type: 'AWS::IAM::Role'
     Properties:
