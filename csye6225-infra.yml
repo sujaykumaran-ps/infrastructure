@@ -48,13 +48,16 @@ Parameters:
   AmiID:
     Description: "AMI ID for Instance"
     Type: String
+  AccessKey:
+    Description: "Access Key for Instance"
+    Type: String
+  SecretKey:
+    Description: "Secret Key for Instance"
+    Type: String
   EC2InstanceName:
     Description: "Instance Name"
     Type: String
     Default: "Webapp"
-  S3BucketName:
-    Description: "S3 Bucket Name"
-    Type: String
   Ipv4Cidr:
     Description: "AMI ID for Instance"
     Type: String
@@ -63,6 +66,10 @@ Parameters:
     Description: "AMI ID for Instance"
     Type: String
     Default: "::/0"
+  ProfileName:
+    Type: String
+    Description: Dev or Demo Env
+    Default: dev
 Resources:
   myVPC:
     Type: AWS::EC2::VPC
@@ -341,6 +348,12 @@ Resources:
           - Ref: ApplicationSecurityGroup
         SubnetId: 
           Ref: PublicSubnetA
+      UserData: 
+        Fn::Base64: 
+            !Sub |
+            #cloud-boothook
+            #!/bin/bash
+            echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
       Tags:
         - Key: Name
           Value: !Ref EC2InstanceName
@@ -352,7 +365,19 @@ Resources:
         ServerSideEncryptionConfiguration: 
         - ServerSideEncryptionByDefault:
             SSEAlgorithm: AES256
-      BucketName: !Ref S3BucketName
+      BucketName: !Join
+        - "."
+        - - !Select
+            - 0
+            - !Split
+              - "-"
+              - !Select
+                - 2
+                - !Split
+                  - "/"
+                  - !Ref "AWS::StackId"
+          - Ref: "ProfileName"
+          - "sujays.me"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -366,9 +391,6 @@ Resources:
             Transitions:
               - TransitionInDays: 30
                 StorageClass: STANDARD_IA
-      Tags:
-        - Key: Name
-          Value: !Ref S3BucketName
   DBSubnetGroup:
     Type: 'AWS::RDS::DBSubnetGroup' 
     Properties: 
@@ -383,27 +405,27 @@ Resources:
     Properties:
       Description: PG-MySQL8
       Family: mysql8.0
-  # MyDB:
-  #   Type: 'AWS::RDS::DBInstance'
-  #   DeletionPolicy: Delete
-  #   Properties:
-  #     MultiAZ: false
-  #     DBInstanceIdentifier: csye6225
-  #     DBName: csye6225
-  #     Port: 3306
-  #     DBInstanceClass: db.t3.micro
-  #     AllocatedStorage: 20
-  #     Engine: MySQL
-  #     EngineVersion: 8.0.27
-  #     MasterUsername: csye6225
-  #     MasterUserPassword: Csye6225DB
-  #     PubliclyAccessible: false
-  #     VPCSecurityGroups:
-  #       - !Ref DBSecurityGroup
-  #     DBSubnetGroupName:
-  #       Ref: DBSubnetGroup
-  #     DBParameterGroupName:
-  #       Ref: RDSDBParameterGroup
+  MyDB:
+    Type: 'AWS::RDS::DBInstance'
+    DeletionPolicy: Delete
+    Properties:
+      MultiAZ: false
+      DBInstanceIdentifier: csye6225
+      DBName: csye6225
+      Port: 3306
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      Engine: MySQL
+      EngineVersion: 8.0.27
+      MasterUsername: csye6225
+      MasterUserPassword: Csye6225DB
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      DBParameterGroupName:
+        Ref: RDSDBParameterGroup
   WebAppS3Policy:
     Type: 'AWS::IAM::Policy'
     Properties:
@@ -415,15 +437,14 @@ Resources:
             Action:
               - 's3:Get*'
               - 's3:List*'
+              - 's3:Delete*'
+              - 's3:ListAllMyBuckets'
               - 's3:GetObject'
               - 's3:PutObject'
               - 's3:DeleteObject'
-              - 's3:PutObjectAcl'
-              - 'logs:Create*'
-              - 'logs:PutLogEvents"'
             Resource: 
-              - 'arn:aws:logs:*:*:*'
-              - 'arn:aws:s3:::*'
+              -  !Sub arn:aws:s3:::${S3Bucket}
+              -  !Sub arn:aws:s3:::${S3Bucket}/*
         Roles: 
           - !Ref IAMRole
   IAMRole:
@@ -442,7 +463,7 @@ Resources:
   IAMInstanceProfile: 
     Type: 'AWS::IAM::InstanceProfile'
     Properties: 
-      Path: "/"
+      Path: /
       Roles: 
         - Ref: IAMRole
 Outputs:
