@@ -54,6 +54,10 @@ Parameters:
   SecretKey:
     Description: "Secret Key for Instance"
     Type: String
+  KeyPairName:
+    Description: "Key Pair Name"
+    Type: String
+    Default: "Webapp"
   EC2InstanceName:
     Description: "Instance Name"
     Type: String
@@ -334,7 +338,7 @@ Resources:
         Ref: "AmiID"
       IamInstanceProfile: !Ref IAMInstanceProfile
       InstanceType: "t2.micro"
-      KeyName: "Webapp"
+      KeyName: !Ref KeyPairName
       BlockDeviceMappings: 
       - DeviceName: "/dev/sdm"
         Ebs: 
@@ -435,9 +439,6 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
-              - 's3:Get*'
-              - 's3:List*'
-              - 's3:Delete*'
               - 's3:ListAllMyBuckets'
               - 's3:GetObject'
               - 's3:PutObject'
