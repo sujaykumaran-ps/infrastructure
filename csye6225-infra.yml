@@ -74,6 +74,18 @@ Parameters:
     Type: String
     Description: Dev or Demo Env
     Default: dev
+  InstanceType:
+    Description: EC2 instance Type
+    Type: String
+    Default: t2.micro
+  HealthPath:
+    Description: Healthz Path
+    Type: String
+    Default: /healthz
+  HostedZone:
+    Description: Hosted Zone URL
+    Type: String
+    Default: dev.sujays.me.
 Resources:
   myVPC:
     Type: AWS::EC2::VPC
@@ -272,35 +284,13 @@ Resources:
           Ref: myVPC
         SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp:
-            Ref: Ipv4Cidr
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIpv6:
-            Ref: Ipv6Cidr
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !GetAtt LoadBalancerSecurityGroup.GroupId
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp:
-            Ref: Ipv4Cidr
-        - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
-          CidrIpv6:
-            Ref: Ipv6Cidr
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp:
-            Ref: Ipv4Cidr
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIpv6:
-            Ref: Ipv6Cidr
+          SourceSecurityGroupId: !GetAtt LoadBalancerSecurityGroup.GroupId
         - IpProtocol: tcp
           Description: SSH
           FromPort: 22
@@ -331,36 +321,67 @@ Resources:
         Tags:
         - Key: Name
           Value: !Ref DBSecurityGroupName
-  MyEC2Instance: 
-    Type: AWS::EC2::Instance
-    Properties: 
-      ImageId: 
-        Ref: "AmiID"
-      IamInstanceProfile: !Ref IAMInstanceProfile
-      InstanceType: "t2.micro"
-      KeyName: !Ref KeyPairName
-      BlockDeviceMappings: 
-      - DeviceName: "/dev/sdm"
-        Ebs: 
-          VolumeType: "gp2"
-          DeleteOnTermination: "false"
-          VolumeSize: "20"
-      NetworkInterfaces: 
-      - AssociatePublicIpAddress: "true"
-        DeviceIndex: "0"
-        GroupSet: 
-          - Ref: ApplicationSecurityGroup
-        SubnetId: 
-          Ref: PublicSubnetA
-      UserData: 
-        Fn::Base64: 
-            !Sub |
-            #cloud-boothook
-            #!/bin/bash
-            echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
-      Tags:
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: load balancer
+        GroupName: load balancer
+        VpcId:
+          Ref: myVPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp:
+            Ref: Ipv4Cidr
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6:
+            Ref: Ipv6Cidr
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp:
+            Ref: Ipv4Cidr
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIpv6:
+            Ref: Ipv6Cidr
+        Tags:
         - Key: Name
-          Value: !Ref EC2InstanceName
+          Value: !Ref LoadBalancerSecurityGroupName
+  # MyEC2Instance: 
+  #   Type: AWS::EC2::Instance
+  #   Properties: 
+  #     ImageId: 
+  #       Ref: "AmiID"
+  #     IamInstanceProfile: !Ref IAMInstanceProfile
+  #     InstanceType: "t2.micro"
+  #     KeyName: !Ref KeyPairName
+  #     BlockDeviceMappings: 
+  #     - DeviceName: "/dev/sdm"
+  #       Ebs: 
+  #         VolumeType: "gp2"
+  #         DeleteOnTermination: "false"
+  #         VolumeSize: "20"
+  #     NetworkInterfaces: 
+  #     - AssociatePublicIpAddress: "true"
+  #       DeviceIndex: "0"
+  #       GroupSet: 
+  #         - Ref: ApplicationSecurityGroup
+  #       SubnetId: 
+  #         Ref: PublicSubnetA
+  #     UserData: 
+  #       Fn::Base64: 
+  #           !Sub |
+  #           #cloud-boothook
+  #           #!/bin/bash
+  #           echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Ref EC2InstanceName
   S3Bucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Delete
@@ -467,6 +488,161 @@ Resources:
       Path: /
       Roles: 
         - Ref: IAMRole
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref AmiID
+      IamInstanceProfile: !Ref IAMInstanceProfile
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sdm"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "false"
+          VolumeSize: "20"
+      AssociatePublicIpAddress: "true"
+      SecurityGroups:
+      - !Ref ApplicationSecurityGroup
+      UserData: 
+        Fn::Base64: 
+            !Sub |
+            #cloud-boothook
+            #!/bin/bash
+            echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
+      LaunchConfigurationName: !Join
+        - "."
+        - - !Select
+            - 0
+            - !Split
+              - "-"
+              - !Select
+                - 2
+                - !Split
+                  - "/"
+                  - !Ref "AWS::StackId"
+          - "asg_launch_config"
+  AutoscalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: '3'
+      MaxSize: '5'
+      DesiredCapacity: '3'
+      HealthCheckGracePeriod: 90
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref LaunchConfig
+      VPCZoneIdentifier:
+      - !Ref PublicSubnetA
+      - !Ref PublicSubnetB
+      - !Ref PublicSubnetC
+      TargetGroupARNs:
+      - !Ref LoadBalancerTargetGroup
+      Cooldown: 60
+      Tags:
+        - Key: Application
+          Value: WebApp
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-asg
+          PropagateAtLaunch: "true"
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: !Sub ${AWS::StackName}-load-balancer
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+      - !Ref PublicSubnetA
+      - !Ref PublicSubnetB
+      - !Ref PublicSubnetC
+      SecurityGroups: 
+      - !Ref LoadBalancerSecurityGroup
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '5'
+      AlarmDescription: Alarm if CPU utilization more than 5%
+      Period: '300'
+      AlarmActions:
+      - !Ref ScaleOutPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref AutoscalingGroup
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '3'
+      AlarmDescription: Alarm if CPU utilization is less than 3%
+      Period: '300'
+      AlarmActions:
+      - !Ref ScaleInPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref AutoscalingGroup
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization
+  ScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref AutoscalingGroup
+      Cooldown: 60
+      ScalingAdjustment: 1
+  ScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref AutoscalingGroup
+      Cooldown: 60
+      ScalingAdjustment: -1
+  LoadBalancerTargetGroup:
+    DependsOn: LoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: !Ref HealthPath
+      IpAddressType: ipv4
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      HealthCheckPort: 3000
+      HealthCheckProtocol: HTTP
+      Name: !Sub ${AWS::StackName}-lb-tg
+      Port: 3000
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      TargetType: instance
+      VpcId: !Ref myVPC
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+  DNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: dev.sujays.me.
+      Comment: Zone apex alias targeted to LoadBalancer.
+      RecordSets:
+      - Name: dev.sujays.me.
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt 'LoadBalancer.CanonicalHostedZoneID'
+          DNSName: !GetAtt 'LoadBalancer.DNSName'
 Outputs:
   VpcId:
     Description: The VPC ID
