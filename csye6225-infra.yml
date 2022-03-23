@@ -349,39 +349,6 @@ Resources:
           ToPort: 443
           CidrIpv6:
             Ref: Ipv6Cidr
-        Tags:
-        - Key: Name
-          Value: !Ref LoadBalancerSecurityGroupName
-  # MyEC2Instance: 
-  #   Type: AWS::EC2::Instance
-  #   Properties: 
-  #     ImageId: 
-  #       Ref: "AmiID"
-  #     IamInstanceProfile: !Ref IAMInstanceProfile
-  #     InstanceType: "t2.micro"
-  #     KeyName: !Ref KeyPairName
-  #     BlockDeviceMappings: 
-  #     - DeviceName: "/dev/sdm"
-  #       Ebs: 
-  #         VolumeType: "gp2"
-  #         DeleteOnTermination: "false"
-  #         VolumeSize: "20"
-  #     NetworkInterfaces: 
-  #     - AssociatePublicIpAddress: "true"
-  #       DeviceIndex: "0"
-  #       GroupSet: 
-  #         - Ref: ApplicationSecurityGroup
-  #       SubnetId: 
-  #         Ref: PublicSubnetA
-  #     UserData: 
-  #       Fn::Base64: 
-  #           !Sub |
-  #           #cloud-boothook
-  #           #!/bin/bash
-  #           echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Ref EC2InstanceName
   S3Bucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Delete
@@ -565,7 +532,7 @@ Resources:
       Statistic: Average
       Threshold: '5'
       AlarmDescription: Alarm if CPU utilization more than 5%
-      Period: '300'
+      Period: '120'
       AlarmActions:
       - !Ref ScaleOutPolicy
       Namespace: AWS/EC2
@@ -581,7 +548,7 @@ Resources:
       Statistic: Average
       Threshold: '3'
       AlarmDescription: Alarm if CPU utilization is less than 3%
-      Period: '300'
+      Period: '120'
       AlarmActions:
       - !Ref ScaleInPolicy
       Namespace: AWS/EC2
