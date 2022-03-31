@@ -755,7 +755,7 @@ Resources:
           - DEPLOYMENT_FAILURE
       Ec2TagFilters:
         - Key: Name
-          Value: NodeAppASG
+          Value: !Sub ${AWS::StackName}-asg
           Type: KEY_AND_VALUE
 Outputs:
   VpcId:
