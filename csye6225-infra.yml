@@ -466,7 +466,7 @@ Resources:
       - DeviceName: "/dev/sdm"
         Ebs: 
           VolumeType: "gp2"
-          DeleteOnTermination: "false"
+          DeleteOnTermination: "true"
           VolumeSize: "20"
       AssociatePublicIpAddress: "true"
       SecurityGroups:
