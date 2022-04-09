@@ -476,7 +476,7 @@ Resources:
             !Sub |
             #cloud-boothook
             #!/bin/bash
-            echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/webservice/config.json
+            echo "{\"db_host\":\"${MyDB.Endpoint.Address}\",\"db_user\":\"csye6225\",\"db_password\":\"Csye6225DB\",\"default_database\":\"csye6225\",\"db_port\":3306,\"s3_bucket\":\"${S3Bucket}\",\"AWS_ACCESS_KEY_ID\":\"${AccessKey}\",\"AWS_ACCESS_KEY_SECRET\":\"${SecretKey}\"}" > /home/ec2-user/config.json
             sudo service codedeploy-agent start
       LaunchConfigurationName: !Join
         - "."
@@ -493,9 +493,9 @@ Resources:
   AutoscalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      MinSize: '3'
-      MaxSize: '5'
-      DesiredCapacity: '3'
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '1'
       LaunchConfigurationName: !Ref LaunchConfig
       VPCZoneIdentifier:
       - !Ref PublicSubnetA
@@ -742,6 +742,8 @@ Resources:
     DependsOn: CodeDeployApplication 
     Properties:
       DeploymentGroupName: csye6225-webapp-deployment
+      AutoScalingGroups:
+      - Ref: AutoscalingGroup
       ApplicationName: !Ref CodeDeployApplication
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
       DeploymentStyle:
@@ -752,10 +754,6 @@ Resources:
         Enabled: 'true'
         Events: 
           - DEPLOYMENT_FAILURE
-      Ec2TagFilters:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-asg
-          Type: KEY_AND_VALUE
   CloudWatchAgentPolicy:
     Type: AWS::IAM::Policy
     Properties:
