@@ -495,7 +495,9 @@ Resources:
       MinSize: '1'
       MaxSize: '3'
       DesiredCapacity: '1'
-      LaunchConfigurationName: !Ref LaunchConfig
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
       VPCZoneIdentifier:
       - !Ref PublicSubnetA
       - !Ref PublicSubnetB
