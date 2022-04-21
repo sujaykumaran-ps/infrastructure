@@ -412,6 +412,8 @@ Resources:
         Ref: DBSubnetGroup
       DBParameterGroupName:
         Ref: RDSDBParameterGroup
+      StorageEncrypted: true
+      KmsKeyId: !GetAtt RdsKmsKey.Arn
   WebAppS3Policy:
     Type: 'AWS::IAM::Policy'
     Properties:
@@ -448,22 +450,28 @@ Resources:
       Path: /
       Roles: 
         - Ref: IAMRole
-  LaunchConfig:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
+      LaunchTemplateName: LaunchTemplate
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - IAMInstanceProfile
+            - Arn
       ImageId: !Ref AmiID
-      IamInstanceProfile: !Ref IAMInstanceProfile
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPairName
+      SecurityGroups:
+      - !Ref ApplicationSecurityGroup
       BlockDeviceMappings: 
       - DeviceName: "/dev/sdm"
         Ebs: 
           VolumeType: "gp2"
-          DeleteOnTermination: "true"
-          VolumeSize: "20"
-      AssociatePublicIpAddress: "true"
-      SecurityGroups:
-      - !Ref ApplicationSecurityGroup
+          DeleteOnTermination: true
+          VolumeSize: 20
+          Encrypted: true
+          KmsKeyId: !GetAtt EBSKmsKey.Arn
       UserData: 
         Fn::Base64: 
             !Sub |
@@ -481,18 +489,6 @@ Resources:
               sudo npm i
               sudo pm2 restart all --update-env
               sudo service codedeploy-agent start
-      LaunchConfigurationName: !Join
-        - "."
-        - - !Select
-            - 0
-            - !Split
-              - "-"
-              - !Select
-                - 2
-                - !Split
-                  - "/"
-                  - !Ref "AWS::StackId"
-          - "asg_launch_config"
   AutoscalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -599,8 +595,10 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref LoadBalancerTargetGroup
       LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn:  arn:aws:acm:us-east-1:342617959621:certificate/b29273c7-2a95-4e79-880d-2776f630d167
   DNSRecord:
     Type: AWS::Route53::RecordSetGroup
     Properties:
@@ -939,6 +937,55 @@ Resources:
               - !GetAtt DynamodbTable.Arn
       Roles:
         - !Ref IAMRole
+  EBSKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for EBS'
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "kms-key-for-ebs"
+        Statement:
+          - Sid: "KEY for user"
+            Effect: Allow
+            Principal:
+              AWS:
+              
+                - !Join ["",["arn:aws:iam::",!Ref "AWS::AccountId",":root"],]
+                - !Join ["",["arn:aws:iam::",!Ref "AWS::AccountId",":role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",],]
+            Action:
+              - 'kms:*'
+            Resource: "*"
+            
+  RdsKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for RDS'
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "kms-key-for-rds"
+        Statement:
+          - Sid: "Key for RDS Instance"
+            Effect: Allow
+            Principal:
+              AWS: !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action:
+              - "kms:*"
+            Resource: "*"
+          - Sid: "Add role"
+            Effect: Allow
+            Principal:
+              AWS: !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS'
+            Action:
+              - "kms:*"
+            Resource: "*"
 Outputs:
   VpcId:
     Description: The VPC ID
