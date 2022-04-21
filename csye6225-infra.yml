@@ -462,7 +462,7 @@ Resources:
         ImageId: !Ref AmiID
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyPairName
-        SecurityGroups:
+        SecurityGroupIds:
           - !Ref ApplicationSecurityGroup
         BlockDeviceMappings: 
           - DeviceName: "/dev/sdm"
@@ -474,21 +474,21 @@ Resources:
               KmsKeyId: !GetAtt EBSKmsKey.Arn
         UserData: 
           Fn::Base64: 
-              !Sub |
-                #!/bin/bash
-                echo export DB_HOST="${MyDB.Endpoint.Address}" >> /etc/environment
-                echo export DB_USER="csye6225" >> /etc/environment
-                echo export DB_PASSWORD="Csye6225DB" >> /etc/environment
-                echo export DB_NAME="csye6225" >> /etc/environment
-                echo export AWS_BUCKET_NAME="${S3Bucket}" >> /etc/environment
-                echo export AWS_REGION="us-east-1" >> /etc/environment
-                echo export DB="csye6225" >> /etc/environment
-                sleep 20
-                source /etc/environment
-                rm -rf node_modules
-                sudo npm i
-                sudo pm2 restart all --update-env
-                sudo service codedeploy-agent start
+            !Sub |
+              #!/bin/bash
+              echo export DB_HOST="${MyDB.Endpoint.Address}" >> /etc/environment
+              echo export DB_USER="csye6225" >> /etc/environment
+              echo export DB_PASSWORD="Csye6225DB" >> /etc/environment
+              echo export DB_NAME="csye6225" >> /etc/environment
+              echo export AWS_BUCKET_NAME="${S3Bucket}" >> /etc/environment
+              echo export AWS_REGION="us-east-1" >> /etc/environment
+              echo export DB="csye6225" >> /etc/environment
+              sleep 20
+              source /etc/environment
+              rm -rf node_modules
+              sudo npm i
+              sudo pm2 restart all --update-env
+              sudo service codedeploy-agent start
   AutoscalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -506,9 +506,6 @@ Resources:
       - !Ref LoadBalancerTargetGroup
       Cooldown: 60
       Tags:
-        - Key: Application
-          Value: WebApp
-          PropagateAtLaunch: "true"
         - Key: Name
           Value: !Sub ${AWS::StackName}-asg
           PropagateAtLaunch: "true"
