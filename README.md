@@ -16,7 +16,11 @@ The Infrastructure YAML file,<br/>
 ## Instructions to Run:
 
 1. Configure AWS CLI. 
-2. Clone this repository using the 'git clone' command. 'cd' into the repository.
-3. Run the Command 'aws cloudformation create-stack --stack-name myvpc --template-body file://csye6225-infra.yml' to create the Stack.
-4. You can see the Stack being created in the AWS Console under CloudFormation.
-5. Run the command 'aws cloudformation delete-stack –stack-name myvpc' to cleanup the Stack.
+2. Import SSL certificate in AWS.
+3. Clone this repository using the 'git clone' command. 'cd' into the repository.
+4. Run the Command 'aws cloudformation create-stack --stack-name myvpc --template-body file://csye6225-infra.yml' to create the Stack.
+5. You can see the Stack being created in the AWS Console under CloudFormation.
+6. Run the command 'aws cloudformation delete-stack –stack-name myvpc' to cleanup the Stack.
+
+## Command to Import SSL Certificate:
+aws acm import-certificate --certificate fileb://certificate.pem --certificate-chain fileb://demo_sujay_me.ca-bundle --private-key fileb://PrivateKey.pem
